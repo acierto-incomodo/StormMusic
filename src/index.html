@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StormMusic</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="brand">StormMusic</div>
+      <nav class="menu">
+        <h3>Fuentes de Música</h3>
+        <ul id="sources-list">
+          </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button id="btn-view-add-source" class="nav-btn">➕ Añadir Fuente</button>
+        <button id="btn-view-settings" class="nav-btn">⚙️ Ajustes y Update</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      
+      <section id="view-tracks" class="view">
+        <h1 id="source-title">Cargando...</h1>
+        <div class="table-container">
+          <table class="tracks-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Título</th>
+              </tr>
+            </thead>
+            <tbody id="tracks-body">
+              </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-add-source" class="view hidden">
+        <h1>Añadir Nueva Fuente</h1>
+        <form id="form-source" class="apple-form">
+          <div class="form-group">
+            <label>Título de la Fuente</label>
+            <input type="text" id="input-title" required placeholder="Ej. Mi Servidor Remoto">
+          </div>
+          <div class="form-group">
+            <label>URL de Music Files (JSON)</label>
+            <input type="url" id="input-files" required placeholder="https://ejemplo.com/files.json">
+          </div>
+          <div class="form-group">
+            <label>URL de Music Directory (JSON)</label>
+            <input type="url" id="input-directory" required placeholder="https://ejemplo.com/dir.json">
+          </div>
+          <button type="submit" class="apple-btn-primary">Guardar Fuente</button>
+        </form>
+      </section>
+
+      <section id="view-settings" class="view hidden">
+        <h1>Ajustes de Sistema</h1>
+        
+        <div class="settings-card">
+          <h3>Apariencia</h3>
+          <button id="btn-toggle-theme" class="apple-btn">Cambiar a Modo Claro</button>
+        </div>
+
+        <div class="settings-card">
+          <h3>Actualizaciones de Software</h3>
+          <p id="updater-status">Estado: Listo para buscar actualizaciones.</p>
+          <div id="updater-actions">
+            <button id="btn-check-update" class="apple-btn-primary">Comprobar actualizaciones</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="player-bar">
+    <div class="player-info">
+      <div id="player-track-title">Ninguna canción seleccionada</div>
+      <div id="player-track-source" style="font-size: 11px; opacity: 0.6;">---</div>
+    </div>
+    <div class="player-controls">
+      <button id="btn-prev" class="control-btn">⏮</button>
+      <button id="btn-play" class="control-btn play-main">▶</button>
+      <button id="btn-next" class="control-btn">⏭</button>
+      <div class="progress-container">
+        <span id="time-current">0:00</span>
+        <input type="range" id="progress-bar" value="0" max="100">
+        <span id="time-total">0:00</span>
+      </div>
+    </div>
+    <div class="player-volume">
+      <span>🔊</span>
+      <input type="range" id="volume-bar" value="80" max="100">
+    </div>
+  </footer>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

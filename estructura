@@ -1,0 +1,8 @@
+StormMusic/
+├── package.json
+├── main.js
+├── preload.js
+└── src/
+    ├── index.html
+    ├── style.css
+    └── renderer.js

@@ -1,0 +1,45 @@
+{
+  "name": "stormmusic",
+  "version": "1.0.0",
+  "description": "Reproductor de música inspirado en Apple Music con soporte de fuentes dinámicas.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [],
+  "author": "StormGamesStudios <meliodas.aitor@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "electron-updater": "^6.1.4"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.stormgamesstudios.stormmusic",
+    "productName": "StormMusic",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "acierto-incomodo",
+        "repo": "StormMusic"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "pacman",
+        "flatpak"
+      ],
+      "category": "AudioVideo"
+    }
+  }
+}
