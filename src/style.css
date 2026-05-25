@@ -343,7 +343,7 @@ h1 { font-size: 28px; font-weight: 700; }
   align-items: center;
 }
 
-/* UNIFICACIÓN DE CONTROLES DESLIZADORES (Range inputs) */
+/* UNIFICACIÓN DE CONTROLES DESLIZADORES (Siempre visibles) */
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
@@ -352,41 +352,45 @@ input[type="range"] {
 }
 input[type="range"]:focus { outline: none; }
 
-/* La Línea Base (Track) */
+/* El carril base (Fondo visible por defecto) */
 input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
-  height: 4px;
-  background: var(--border-color);
-  border-radius: 2px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.15); /* Gris claro traslúcido en modo oscuro */
+  border-radius: 3px;
   transition: background 0.15s;
 }
 
-.slider-wrapper:hover input[type="range"]::-webkit-slider-runnable-track,
-.player-volume:hover input[type="range"]::-webkit-slider-runnable-track {
-  background: var(--text-secondary);
+[data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(0, 0, 0, 0.12); /* Gris suave en modo claro */
 }
 
-/* El botón circular de arrastre (Thumb) - Oculto, se revela al pasar el mouse por su zona */
+/* Al pasar por encima, el carril se oscurece/ilumina un poco más */
+.slider-wrapper:hover input[type="range"]::-webkit-slider-runnable-track,
+.player-volume:hover input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(255, 255, 255, 0.3);
+}
+[data-theme="light"] .slider-wrapper:hover input[type="range"]::-webkit-slider-runnable-track,
+[data-theme="light"] .player-volume:hover input[type="range"]::-webkit-slider-runnable-track {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* El botón circular (Thumb - Siempre visible ahora) */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 12px;
   width: 12px;
   border-radius: 50%;
-  background: var(--text-main);
-  margin-top: -4px; /* Centrado: (height track / 2) - (height thumb / 2) */
-  opacity: 0;
-  transition: opacity 0.15s, transform 0.1s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-.slider-wrapper:hover input[type="range"]::-webkit-slider-thumb,
-.player-volume:hover input[type="range"]::-webkit-slider-thumb {
-  opacity: 1;
+  background: var(--text-main); /* Blanco en modo oscuro, negro en claro */
+  margin-top: -3.5px; /* Centrado en el eje vertical */
+  opacity: 1; /* 🛠️ Cambiado de 0 a 1 para visibilidad permanente */
+  transition: transform 0.1s, background-color 0.1s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
-  background: var(--accent);
+  transform: scale(1.3);
+  background: var(--accent); /* Se vuelve rojo Apple al arrastrarlo */
 }
 
 /* SECCIÓN VOLUMEN (DERECHA) */

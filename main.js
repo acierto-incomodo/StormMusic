@@ -1,6 +1,10 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const Store = require('electron-store'); // 📦 Importamos electron-store
+
+// Inicializamos el almacenamiento
+const store = new Store();
 
 let mainWindow;
 
@@ -10,7 +14,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    frame: false, // 🛠️ Eliminamos la barra nativa de la ventana
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -34,22 +38,22 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// --- 🛠️ CONTROLES NATIVOS DE VENTANA EN WINDOWS ---
-ipcMain.on('window-minimize', () => {
-  mainWindow.minimize();
+// --- 📦 MANEJADORES DE ALMACENAMIENTO (ELECTRON-STORE) ---
+ipcMain.handle('store-get', (event, key) => {
+  return store.get(key);
 });
 
+ipcMain.on('store-set', (event, key, value) => {
+  store.set(key, value);
+});
+
+// --- CONTROLES NATIVOS DE VENTANA ---
+ipcMain.on('window-minimize', () => mainWindow.minimize());
 ipcMain.on('window-maximize', () => {
-  if (mainWindow.isMaximized()) {
-    mainWindow.unmaximize();
-  } else {
-    mainWindow.maximize();
-  }
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
 });
-
-ipcMain.on('window-close', () => {
-  mainWindow.close();
-});
+ipcMain.on('window-close', () => mainWindow.close());
 
 // --- Lógica de Actualizaciones ---
 ipcMain.on('check-update', () => { autoUpdater.checkForUpdates(); });

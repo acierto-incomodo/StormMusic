@@ -1,6 +1,6 @@
 {
   "name": "stormmusic",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Reproductor de música inspirado en Apple Music con soporte de fuentes dinámicas.",
   "main": "main.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "author": "StormGamesStudios <meliodas.aitor@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "electron-store": "^7.0.2",
     "electron-updater": "^6.1.4"
   },
   "devDependencies": {

@@ -12,6 +12,7 @@ let currentSource = null;
 let currentPlaylist = [];
 let currentIndex = -1;
 let editingSourceId = null; // 🛠️ Flag para saber si editamos o guardamos nuevo
+let lastSavedSecond = -1;   // Control de guardado inteligente de tiempo
 
 const audio = new Audio();
 
@@ -34,15 +35,63 @@ const views = {
 };
 
 // --- INITIALIZATION ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initNativeWindowControls(); // 🛠️ Inicializar botones de Windows
   loadSources();
   switchView('tracks');
-  selectSource(DEFAULT_SOURCE.id);
   initPlayerEvents();
   initUpdaterEvents();
   initNavigation();
+  
+  // 📦 Restaurar todo el estado guardado en electron-store de forma asíncrona
+  await restorePlayerState();
 });
+
+// --- 📦 RESTAURAR ESTADO PERSISTENTE ---
+async function restorePlayerState() {
+  const savedVolume = await window.electronAPI.storeGet('volume');
+  const savedSourceId = await window.electronAPI.storeGet('lastSourceId');
+  const savedTrackIndex = await window.electronAPI.storeGet('lastTrackIndex');
+  const savedPosition = await window.electronAPI.storeGet('lastPosition');
+
+  // 1. Restaurar Volumen
+  if (savedVolume !== undefined && savedVolume !== null) {
+    audio.volume = savedVolume;
+    document.getElementById('volume-bar').value = savedVolume * 100;
+  } else {
+    audio.volume = 0.8;
+    document.getElementById('volume-bar').value = 80;
+  }
+
+  // 2. Restaurar última fuente seleccionada
+  const sourceIdToLoad = savedSourceId || DEFAULT_SOURCE.id;
+  await selectSource(sourceIdToLoad); 
+
+  // 3. Restaurar última canción y su línea de tiempo sin autoreproducir
+  if (savedTrackIndex !== undefined && savedTrackIndex !== null && currentPlaylist[savedTrackIndex]) {
+    currentIndex = savedTrackIndex;
+    const track = currentPlaylist[currentIndex];
+
+    document.getElementById('player-track-title').textContent = track.title;
+    document.getElementById('player-track-source').textContent = currentSource.title;
+    
+    audio.src = track.url;
+    
+    // Esperamos a que carguen los metadatos del archivo para poder posicionar la línea de tiempo
+    audio.addEventListener('loadedmetadata', function onMetadata() {
+      if (savedPosition && savedPosition < audio.duration) {
+        audio.currentTime = savedPosition;
+        
+        // Actualizar barras e indicadores visuales
+        const progressBar = document.getElementById('progress-bar');
+        progressBar.value = (audio.currentTime / audio.duration) * 100;
+        document.getElementById('time-current').textContent = formatTime(audio.currentTime);
+        document.getElementById('time-total').textContent = formatTime(audio.duration);
+      }
+      audio.removeEventListener('loadedmetadata', onMetadata);
+    });
+  }
+}
 
 // --- 🛠️ BOTONES WINDOWS NATIVOS ---
 function initNativeWindowControls() {
@@ -269,7 +318,11 @@ function playTrack(index) {
 
   audio.src = track.url;
   audio.play();
-  document.getElementById('btn-play').innerHTML = SVG_PAUSE; // 🛠️ Inyecta SVG Pausa
+  document.getElementById('btn-play').innerHTML = SVG_PAUSE;
+
+  // 📦 Persistir canción y lista actual de manera permanente
+  window.electronAPI.storeSet('lastSourceId', currentSource.id);
+  window.electronAPI.storeSet('lastTrackIndex', currentIndex);
 }
 
 function initPlayerEvents() {
@@ -281,15 +334,18 @@ function initPlayerEvents() {
     if (!audio.src) return;
     if (audio.paused) {
       audio.play();
-      btnPlay.innerHTML = SVG_PAUSE; // 🛠️ Cambia a Pausa
+      btnPlay.innerHTML = SVG_PAUSE;
     } else {
       audio.pause();
-      btnPlay.innerHTML = SVG_PLAY; // 🛠️ Cambia a Play
+      btnPlay.innerHTML = SVG_PLAY;
+      // 📦 Guardar inmediatamente al pausar la línea de reproducción
+      window.electronAPI.storeSet('lastPosition', audio.currentTime);
     }
   });
 
   // Salto automático al terminar una canción de manera natural
   audio.addEventListener('ended', () => {
+    window.electronAPI.storeSet('lastPosition', 0); // Resetear posición
     if (currentIndex < currentPlaylist.length - 1) {
       playTrack(currentIndex + 1);
     } else {
@@ -302,16 +358,34 @@ function initPlayerEvents() {
   document.getElementById('btn-next').addEventListener('click', () => { if (currentIndex < currentPlaylist.length - 1) playTrack(currentIndex + 1); });
   document.getElementById('btn-prev').addEventListener('click', () => { if (currentIndex > 0) playTrack(currentIndex - 1); });
 
+  // Evento de actualización horaria continua
   audio.addEventListener('timeupdate', () => {
     if (audio.duration) {
       progressBar.value = (audio.currentTime / audio.duration) * 100;
       document.getElementById('time-current').textContent = formatTime(audio.currentTime);
       document.getElementById('time-total').textContent = formatTime(audio.duration);
+
+      // 📦 Guardado inteligente cada 3 segundos en segundo plano sin asfixiar el disco I/O
+      const currentSecond = Math.floor(audio.currentTime);
+      if (currentSecond !== lastSavedSecond && currentSecond % 3 === 0) {
+        lastSavedSecond = currentSecond;
+        window.electronAPI.storeSet('lastPosition', audio.currentTime);
+      }
     }
   });
   
-  progressBar.addEventListener('input', () => { if (audio.duration) audio.currentTime = (progressBar.value / 100) * audio.duration; });
-  volumeBar.addEventListener('input', () => { audio.volume = volumeBar.value / 100; });
+  progressBar.addEventListener('input', () => { 
+    if (audio.duration) {
+      audio.currentTime = (progressBar.value / 100) * audio.duration;
+      window.electronAPI.storeSet('lastPosition', audio.currentTime);
+    }
+  });
+
+  volumeBar.addEventListener('input', () => { 
+    audio.volume = volumeBar.value / 100;
+    // 📦 Guardar volumen seleccionado
+    window.electronAPI.storeSet('volume', audio.volume);
+  });
 }
 
 function formatTime(secs) {

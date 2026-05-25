@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Almacenamiento persistente
+  storeGet: (key) => ipcRenderer.invoke('store-get', key),
+  storeSet: (key, val) => ipcRenderer.send('store-set', key, val),
+
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),
