@@ -11,8 +11,8 @@ let sources = [];
 let currentSource = null;
 let currentPlaylist = [];
 let currentIndex = -1;
+let editingSourceId = null; // 🛠️ Flag para saber si editamos o guardamos nuevo
 
-// Audio HTML5 Engine
 const audio = new Audio();
 
 // --- DOM ELEMENTS ---
@@ -20,24 +20,35 @@ const sourcesList = document.getElementById('sources-list');
 const tracksBody = document.getElementById('tracks-body');
 const sourceTitle = document.getElementById('source-title');
 const formSource = document.getElementById('form-source');
+const cardsContainer = document.getElementById('sources-cards-container');
+const formViewTitle = document.getElementById('form-view-title');
 
-// Vistas
 const views = {
   tracks: document.getElementById('view-tracks'),
-  addSource: document.getElementById('view-add-source'),
+  manageSources: document.getElementById('view-manage-sources'),
+  sourceForm: document.getElementById('view-source-form'),
   settings: document.getElementById('view-settings')
 };
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
+  initNativeWindowControls(); // 🛠️ Inicializar botones de Windows
   loadSources();
   switchView('tracks');
   selectSource(DEFAULT_SOURCE.id);
   initPlayerEvents();
   initUpdaterEvents();
+  initNavigation();
 });
 
-// --- ROUTING / SYSTEM VIEWS ---
+// --- 🛠️ BOTONES WINDOWS NATIVOS ---
+function initNativeWindowControls() {
+  document.getElementById('win-min').addEventListener('click', () => window.electronAPI.windowMinimize());
+  document.getElementById('win-max').addEventListener('click', () => window.electronAPI.windowMaximize());
+  document.getElementById('win-close').addEventListener('click', () => window.electronAPI.windowClose());
+}
+
+// --- ROUTING Y NAVEGACIÓN ---
 function switchView(viewName) {
   Object.keys(views).forEach(key => {
     if (key === viewName) views[key].classList.remove('hidden');
@@ -45,8 +56,25 @@ function switchView(viewName) {
   });
 }
 
-document.getElementById('btn-view-add-source').addEventListener('click', () => switchView('addSource'));
-document.getElementById('btn-view-settings').addEventListener('click', () => switchView('settings'));
+function initNavigation() {
+  document.getElementById('btn-view-manage-sources').addEventListener('click', () => {
+    renderManagementCards();
+    switchView('manageSources');
+  });
+  
+  document.getElementById('btn-view-settings').addEventListener('click', () => switchView('settings'));
+  
+  document.getElementById('btn-trigger-add').addEventListener('click', () => {
+    editingSourceId = null;
+    formViewTitle.textContent = "Añadir Nueva Fuente";
+    formSource.reset();
+    switchView('sourceForm');
+  });
+
+  document.getElementById('btn-form-cancel').addEventListener('click', () => {
+    switchView('manageSources');
+  });
+}
 
 // --- LOGICA DE FUENTES ---
 function loadSources() {
@@ -75,44 +103,139 @@ function renderSidebarSources() {
   });
 }
 
+// 🛠️ PANTALLA GESTIÓN DE FUENTES (TARJETAS)
+function renderManagementCards() {
+  cardsContainer.innerHTML = '';
+  sources.forEach(src => {
+    const card = document.createElement('div');
+    card.className = 'source-card';
+    
+    // Bloquear botones si es la fuente por defecto
+    const isDisabled = src.isDefault ? 'disabled' : '';
+
+    card.innerHTML = `
+      <div class="source-card-info">
+        <h2>${src.title} ${src.isDefault ? '<span style="font-size:11px; opacity:0.5;">(Sistema)</span>' : ''}</h2>
+        <p><strong>Music Files:</strong> ${src.filesUrl}</p>
+        <p><strong>Music Directory:</strong> ${src.directoryUrl}</p>
+      </div>
+      <div class="source-card-actions">
+        <button class="apple-btn small-btn edit-card-btn" data-id="${src.id}" ${isDisabled}>✏️ Editar</button>
+        <button class="apple-btn small-btn delete-card-btn" data-id="${src.id}" style="color:var(--accent);" ${isDisabled}>🗑️ Eliminar</button>
+      </div>
+    `;
+    cardsContainer.appendChild(card);
+  });
+
+  // Eventos de las tarjetas
+  document.querySelectorAll('.edit-card-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.dataset.id;
+      openEditForm(id);
+    });
+  });
+
+  document.querySelectorAll('.delete-card-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.dataset.id;
+      deleteSource(id);
+    });
+  });
+}
+
+function openEditForm(id) {
+  const src = sources.find(s => s.id === id);
+  if (!src || src.isDefault) return;
+
+  editingSourceId = id;
+  formViewTitle.textContent = `Editar Fuente: ${src.title}`;
+  document.getElementById('input-title').value = src.title;
+  document.getElementById('input-files').value = src.filesUrl;
+  document.getElementById('input-directory').value = src.directoryUrl;
+  
+  switchView('sourceForm');
+}
+
+function deleteSource(id) {
+  if (confirm('¿Seguro que quieres eliminar esta fuente de música?')) {
+    let localSources = JSON.parse(localStorage.getItem('storm_sources') || '[]');
+    localSources = localSources.filter(s => s.id !== id);
+    localStorage.setItem('storm_sources', JSON.stringify(localSources));
+    
+    // Si la fuente borrada era la activa, volvemos a la default
+    if (currentSource && currentSource.id === id) {
+      currentSource = DEFAULT_SOURCE;
+    }
+    
+    loadSources();
+    renderManagementCards();
+  }
+}
+
+// --- FORMULARIO GUARDAR / EDITAR FUENTE ---
+formSource.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const title = document.getElementById('input-title').value;
+  const filesUrl = document.getElementById('input-files').value;
+  const directoryUrl = document.getElementById('input-directory').value;
+
+  let localSources = JSON.parse(localStorage.getItem('storm_sources') || '[]');
+
+  if (editingSourceId) {
+    // Modo Edición
+    localSources = localSources.map(s => {
+      if (s.id === editingSourceId) {
+        return { ...s, title, filesUrl, directoryUrl };
+      }
+      return s;
+    });
+    editingSourceId = null;
+  } else {
+    // Modo Nuevo
+    const newSource = {
+      id: 'custom-' + Date.now(),
+      title,
+      filesUrl,
+      directoryUrl,
+      isDefault: false
+    };
+    localSources.push(newSource);
+  }
+
+  localStorage.setItem('storm_sources', JSON.stringify(localSources));
+  formSource.reset();
+  loadSources();
+  renderManagementCards();
+  switchView('manageSources');
+});
+
+// --- TRACKS ENGINE ---
 async function selectSource(id) {
-  currentSource = sources.find(s => s.id === id);
+  currentSource = sources.find(s => s.id === id) || DEFAULT_SOURCE;
   renderSidebarSources();
   sourceTitle.textContent = currentSource.title;
-  tracksBody.innerHTML = '<tr><td colspan="2">Cargando catálogo de canciones...</td></tr>';
+  tracksBody.innerHTML = '<tr><td colspan="2">Cargando canciones...</td></tr>';
 
   try {
-    // Peticiones en paralelo de ambos mapeos
     const [resFiles, resDirectory] = await Promise.all([
       fetch(currentSource.filesUrl).then(r => r.json()),
       fetch(currentSource.directoryUrl).then(r => r.json())
     ]);
-
     currentPlaylist = mergeMusicSourceData(resFiles, resDirectory);
     renderTracks(currentPlaylist);
   } catch (error) {
-    console.error(error);
-    tracksBody.innerHTML = '<tr><td colspan="2" style="color:var(--accent);">Error cargando los endpoints de esta fuente.</td></tr>';
+    tracksBody.innerHTML = '<tr><td colspan="2" style="color:var(--accent);">Error cargando las URLs de esta fuente.</td></tr>';
   }
 }
 
-/**
- * Mapea y cruza de manera segura las llaves numéricas o índices de los dos JSONs estructurados.
- */
 function mergeMusicSourceData(files, directory) {
   const merged = [];
-  
-  // Soporta estructuras complejas si vienen encapsuladas en un nodo raíz o son objetos puros directos
   const filesObj = files.files || files;
   const dirObj = directory.directory || directory;
 
   Object.keys(filesObj).forEach(key => {
     if (dirObj[key]) {
-      merged.push({
-        id: key,
-        title: filesObj[key],
-        url: dirObj[key]
-      });
+      merged.push({ id: key, title: filesObj[key], url: dirObj[key] });
     }
   });
   return merged.sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -121,24 +244,18 @@ function mergeMusicSourceData(files, directory) {
 function renderTracks(playlist) {
   tracksBody.innerHTML = '';
   if (playlist.length === 0) {
-    tracksBody.innerHTML = '<tr><td colspan="2">No se encontraron indexaciones de canciones válidas.</td></tr>';
+    tracksBody.innerHTML = '<tr><td colspan="2">No hay canciones mapeadas.</td></tr>';
     return;
   }
-
   playlist.forEach((track, index) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="width: 50px; color: var(--text-secondary);">${track.id}</td>
-      <td>${track.title}</td>
-    `;
-    tr.addEventListener('click', () => {
-      playTrack(index);
-    });
+    tr.innerHTML = `<td style="width:50px; color:var(--text-secondary);">${track.id}</td><td>${track.title}</td>`;
+    tr.addEventListener('click', () => playTrack(index));
     tracksBody.appendChild(tr);
   });
 }
 
-// --- CONTROLES DE REPRODUCCIÓN ---
+// --- PLAYER AUDIO EVENTS ---
 function playTrack(index) {
   if (index < 0 || index >= currentPlaylist.length) return;
   currentIndex = index;
@@ -159,41 +276,22 @@ function initPlayerEvents() {
 
   btnPlay.addEventListener('click', () => {
     if (!audio.src) return;
-    if (audio.paused) {
-      audio.play();
-      btnPlay.textContent = '⏸';
-    } else {
-      audio.pause();
-      btnPlay.textContent = '▶';
-    }
+    if (audio.paused) { audio.play(); btnPlay.textContent = '⏸'; }
+    else { audio.pause(); btnPlay.textContent = '▶'; }
   });
 
-  document.getElementById('btn-next').addEventListener('click', () => {
-    if (currentIndex < currentPlaylist.length - 1) playTrack(currentIndex + 1);
-  });
-
-  document.getElementById('btn-prev').addEventListener('click', () => {
-    if (currentIndex > 0) playTrack(currentIndex - 1);
-  });
+  document.getElementById('btn-next').addEventListener('click', () => { if (currentIndex < currentPlaylist.length - 1) playTrack(currentIndex + 1); });
+  document.getElementById('btn-prev').addEventListener('click', () => { if (currentIndex > 0) playTrack(currentIndex - 1); });
 
   audio.addEventListener('timeupdate', () => {
     if (audio.duration) {
-      const percentage = (audio.currentTime / audio.duration) * 100;
-      progressBar.value = percentage;
+      progressBar.value = (audio.currentTime / audio.duration) * 100;
       document.getElementById('time-current').textContent = formatTime(audio.currentTime);
       document.getElementById('time-total').textContent = formatTime(audio.duration);
     }
   });
-
-  progressBar.addEventListener('input', () => {
-    if (audio.duration) {
-      audio.currentTime = (progressBar.value / 100) * audio.duration;
-    }
-  });
-
-  volumeBar.addEventListener('input', () => {
-    audio.volume = volumeBar.value / 100;
-  });
+  progressBar.addEventListener('input', () => { if (audio.duration) audio.currentTime = (progressBar.value / 100) * audio.duration; });
+  volumeBar.addEventListener('input', () => { audio.volume = volumeBar.value / 100; });
 }
 
 function formatTime(secs) {
@@ -202,34 +300,7 @@ function formatTime(secs) {
   return `${m}:${s}`;
 }
 
-// --- FORMULARIO NUEVA FUENTE ---
-formSource.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const title = document.getElementById('input-title').value;
-  const filesUrl = document.getElementById('input-files').value;
-  const directoryUrl = document.getElementById('input-directory').value;
-
-  const newSource = {
-    id: 'custom-' + Date.now(),
-    title,
-    filesUrl,
-    directoryUrl,
-    isDefault: false
-  };
-
-  // Obtener almacenamiento existente
-  const localData = localStorage.getItem('storm_sources');
-  const currentLocal = localData ? JSON.parse(localData) : [];
-  currentLocal.push(newSource);
-  localStorage.setItem('storm_sources', JSON.stringify(currentLocal));
-
-  formSource.reset();
-  loadSources();
-  switchView('tracks');
-  selectSource(newSource.id);
-});
-
-// --- MODO OSCURO / CLARO ---
+// --- THEME SWITCHER ---
 const btnTheme = document.getElementById('btn-toggle-theme');
 btnTheme.addEventListener('click', () => {
   const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -242,45 +313,30 @@ btnTheme.addEventListener('click', () => {
   }
 });
 
-// --- SECCIÓN ACTUALIZADOR (IPC UPDATER) ---
+// --- UPDATER ---
 function initUpdaterEvents() {
   const btnCheck = document.getElementById('btn-check-update');
   const statusText = document.getElementById('updater-status');
   const actionsContainer = document.getElementById('updater-actions');
 
-  btnCheck.addEventListener('click', () => {
-    window.electronAPI.checkUpdate();
-  });
+  btnCheck.addEventListener('click', () => window.electronAPI.checkUpdate());
 
   window.electronAPI.onUpdaterMessage((status, data) => {
     switch (status) {
-      case 'checking':
-        statusText.textContent = 'Estado: Buscando actualizaciones en el servidor...';
-        break;
+      case 'checking': statusText.textContent = 'Estado: Buscando actualizaciones...'; break;
       case 'available':
-        statusText.textContent = `Estado: ¡Nueva versión disponible! (v${data})`;
+        statusText.textContent = `Estado: ¡Nueva versión v${data} disponible!`;
         actionsContainer.innerHTML = `<button id="btn-download-update" class="apple-btn-primary">Descargar Actualización</button>`;
-        document.getElementById('btn-download-update').addEventListener('click', () => {
-          window.electronAPI.downloadUpdate();
-        });
+        document.getElementById('btn-download-update').addEventListener('click', () => window.electronAPI.downloadUpdate());
         break;
-      case 'not-available':
-        statusText.textContent = 'Estado: Ya estás ejecutando la última versión estable.';
-        break;
-      case 'downloading':
-        statusText.textContent = `Estado: Descargando actualización... (${data}%)`;
-        break;
+      case 'not-available': statusText.textContent = 'Estado: Tienes la última versión instalada.'; break;
+      case 'downloading': statusText.textContent = `Estado: Descargando... (${data}%)`; break;
       case 'downloaded':
-        statusText.textContent = 'Estado: Descarga completada. Listo para aplicar.';
+        statusText.textContent = 'Estado: Descargada completa.';
         actionsContainer.innerHTML = `<button id="btn-install-update" class="apple-btn-primary">Reiniciar y Actualizar</button>`;
-        document.getElementById('btn-install-update').addEventListener('click', () => {
-          window.electronAPI.installUpdate();
-        });
+        document.getElementById('btn-install-update').addEventListener('click', () => window.electronAPI.installUpdate());
         break;
-      case 'error':
-        statusText.textContent = `Estado: Error en el update o falta configurar el repositorio remoto.`;
-        console.error(data);
-        break;
+      case 'error': statusText.textContent = 'Estado: Error al consultar actualizaciones.'; break;
     }
   });
 }

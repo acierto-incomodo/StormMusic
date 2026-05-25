@@ -8,6 +8,15 @@
 </head>
 <body>
 
+  <div class="custom-titlebar">
+    <div class="titlebar-drag-zone">StormMusic</div>
+    <div class="titlebar-controls">
+      <button id="win-min" class="win-btn">⚊</button>
+      <button id="win-max" class="win-btn">🗖</button>
+      <button id="win-close" class="win-btn close-btn">✕</button>
+    </div>
+  </div>
+
   <div class="app-container">
     <aside class="sidebar">
       <div class="brand">StormMusic</div>
@@ -17,7 +26,7 @@
           </ul>
       </nav>
       <div class="sidebar-footer">
-        <button id="btn-view-add-source" class="nav-btn">➕ Añadir Fuente</button>
+        <button id="btn-view-manage-sources" class="nav-btn">📝 Editar Fuentes</button>
         <button id="btn-view-settings" class="nav-btn">⚙️ Ajustes y Update</button>
       </div>
     </aside>
@@ -34,14 +43,22 @@
                 <th>Título</th>
               </tr>
             </thead>
-            <tbody id="tracks-body">
-              </tbody>
+            <tbody id="tracks-body"></tbody>
           </table>
         </div>
       </section>
 
-      <section id="view-add-source" class="view hidden">
-        <h1>Añadir Nueva Fuente</h1>
+      <section id="view-manage-sources" class="view hidden">
+        <div class="view-header">
+          <h1>Gestión de Fuentes</h1>
+          <button id="btn-trigger-add" class="apple-btn-primary">➕ Añadir Nueva Fuente</button>
+        </div>
+        <div class="cards-grid" id="sources-cards-container">
+          </div>
+      </section>
+
+      <section id="view-source-form" class="view hidden">
+        <h1 id="form-view-title">Añadir Nueva Fuente</h1>
         <form id="form-source" class="apple-form">
           <div class="form-group">
             <label>Título de la Fuente</label>
@@ -55,18 +72,19 @@
             <label>URL de Music Directory (JSON)</label>
             <input type="url" id="input-directory" required placeholder="https://ejemplo.com/dir.json">
           </div>
-          <button type="submit" class="apple-btn-primary">Guardar Fuente</button>
+          <div class="form-buttons">
+            <button type="submit" id="btn-form-submit" class="apple-btn-primary">Guardar Fuente</button>
+            <button type="button" id="btn-form-cancel" class="apple-btn">Cancelar</button>
+          </div>
         </form>
       </section>
 
       <section id="view-settings" class="view hidden">
-        <h1>Ajustes de Sistema</h1>
-        
+        <h1>Ajustes de System</h1>
         <div class="settings-card">
           <h3>Apariencia</h3>
           <button id="btn-toggle-theme" class="apple-btn">Cambiar a Modo Claro</button>
         </div>
-
         <div class="settings-card">
           <h3>Actualizaciones de Software</h3>
           <p id="updater-status">Estado: Listo para buscar actualizaciones.</p>
