@@ -23,6 +23,9 @@ const formSource = document.getElementById('form-source');
 const cardsContainer = document.getElementById('sources-cards-container');
 const formViewTitle = document.getElementById('form-view-title');
 
+const SVG_PLAY = `<svg id="svg-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+const SVG_PAUSE = `<svg id="svg-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+
 const views = {
   tracks: document.getElementById('view-tracks'),
   manageSources: document.getElementById('view-manage-sources'),
@@ -266,7 +269,7 @@ function playTrack(index) {
 
   audio.src = track.url;
   audio.play();
-  document.getElementById('btn-play').textContent = '⏸';
+  document.getElementById('btn-play').innerHTML = SVG_PAUSE; // 🛠️ Inyecta SVG Pausa
 }
 
 function initPlayerEvents() {
@@ -276,8 +279,24 @@ function initPlayerEvents() {
 
   btnPlay.addEventListener('click', () => {
     if (!audio.src) return;
-    if (audio.paused) { audio.play(); btnPlay.textContent = '⏸'; }
-    else { audio.pause(); btnPlay.textContent = '▶'; }
+    if (audio.paused) {
+      audio.play();
+      btnPlay.innerHTML = SVG_PAUSE; // 🛠️ Cambia a Pausa
+    } else {
+      audio.pause();
+      btnPlay.innerHTML = SVG_PLAY; // 🛠️ Cambia a Play
+    }
+  });
+
+  // Salto automático al terminar una canción de manera natural
+  audio.addEventListener('ended', () => {
+    if (currentIndex < currentPlaylist.length - 1) {
+      playTrack(currentIndex + 1);
+    } else {
+      btnPlay.innerHTML = SVG_PLAY;
+      progressBar.value = 0;
+      document.getElementById('time-current').textContent = '0:00';
+    }
   });
 
   document.getElementById('btn-next').addEventListener('click', () => { if (currentIndex < currentPlaylist.length - 1) playTrack(currentIndex + 1); });
@@ -290,6 +309,7 @@ function initPlayerEvents() {
       document.getElementById('time-total').textContent = formatTime(audio.duration);
     }
   });
+  
   progressBar.addEventListener('input', () => { if (audio.duration) audio.currentTime = (progressBar.value / 100) * audio.duration; });
   volumeBar.addEventListener('input', () => { audio.volume = volumeBar.value / 100; });
 }

@@ -232,23 +232,174 @@ h1 { font-size: 28px; font-weight: 700; }
 
 /* PLAYER BAR */
 .player-bar {
-  height: 75px;
+  height: 90px; /* Incrementado para dar más aire vertical */
   background-color: var(--bg-sidebar);
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 30px;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  z-index: 9999;
 }
-.player-info { width: 25%; }
-.player-controls { width: 50%; display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.control-btn { background: none; border: none; color: var(--text-main); font-size: 18px; cursor: pointer; margin: 0 10px; }
-.play-main { font-size: 24px; }
-.progress-container { display: flex; align-items: center; width: 100%; gap: 10px; font-size: 11px; color: var(--text-secondary); }
-.progress-container input, .player-volume input { flex: 1; accent-color: var(--accent); cursor: pointer; }
-.player-volume { width: 25%; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Ajustamos el contenedor de las vistas para el nuevo alto del player */
+.app-container {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 32px - 90px);
+}
+
+.player-info {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#player-track-title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Contenedor central de mandos */
+.player-controls-container {
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-buttons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Botones Secundarios (Siguiente/Anterior) */
+.control-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.2s, transform 0.1s, opacity 0.2s;
+}
+
+.control-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--text-main);
+  opacity: 0.8;
+}
+
+.control-btn:hover {
+  background-color: var(--hover-color);
+}
+.control-btn:hover svg { opacity: 1; }
+.control-btn:active { transform: scale(0.95); }
+
+/* Botón Play/Pausa Central (Redondeado y dominante) */
+.control-btn.play-main {
+  background-color: var(--text-main);
+  padding: 10px;
+}
+
+.control-btn.play-main svg {
+  width: 22px;
+  height: 22px;
+  fill: var(--bg-main);
+  opacity: 1;
+}
+
+.control-btn.play-main:hover {
+  background-color: var(--text-main);
+  transform: scale(1.06);
+}
+
+/* BARRA DE PROGRESO Y TEXTOS DE TIEMPO */
+.progress-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; /* Evita parpadeos de posición al cambiar números */
+}
+
+.slider-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* UNIFICACIÓN DE CONTROLES DESLIZADORES (Range inputs) */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:focus { outline: none; }
+
+/* La Línea Base (Track) */
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: var(--border-color);
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.slider-wrapper:hover input[type="range"]::-webkit-slider-runnable-track,
+.player-volume:hover input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--text-secondary);
+}
+
+/* El botón circular de arrastre (Thumb) - Oculto, se revela al pasar el mouse por su zona */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: var(--text-main);
+  margin-top: -4px; /* Centrado: (height track / 2) - (height thumb / 2) */
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.1s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.slider-wrapper:hover input[type="range"]::-webkit-slider-thumb,
+.player-volume:hover input[type="range"]::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  background: var(--accent);
+}
+
+/* SECCIÓN VOLUMEN (DERECHA) */
+.player-volume {
+  width: 25%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.volume-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--text-secondary);
 }
