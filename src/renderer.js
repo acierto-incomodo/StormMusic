@@ -11,7 +11,7 @@ let sources = [];
 let currentSource = null;
 let currentPlaylist = [];
 let currentIndex = -1;
-let editingSourceId = null; // 🛠️ Flag para saber si editamos o guardamos nuevo
+let editingSourceId = null; // Flag para saber si editamos o guardamos nuevo
 let lastSavedSecond = -1;   // Control de guardado inteligente de tiempo
 
 const audio = new Audio();
@@ -36,21 +36,21 @@ const views = {
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
-  initNativeWindowControls(); // 🛠️ Inicializar botones de Windows
+  initNativeWindowControls(); // Inicializar botones de Windows
   loadSources();
   switchView('tracks');
   initPlayerEvents();
   initUpdaterEvents();
   initNavigation();
   
-  // ⚙️ Inicializar y cargar los nuevos ajustes del sistema
+  // ⚙️ Inicializar el motor de los controles de la vista de ajustes
   await initSettings();
   
-  // 📦 Restaurar todo el estado guardado de reproducción
+  // 📦 Restaurar todo el estado guardado en electron-store
   await restorePlayerState();
 });
 
-// --- ⚙️ MOTOR DE AJUSTES (STORMMUSIC) ---
+// --- ⚙️ MOTOR DE AJUSTES DE LA INTERFAZ ---
 async function initSettings() {
   const settingResumeMusic = document.getElementById('setting-resume-music');
   const settingTrayIcon = document.getElementById('setting-tray-icon');
@@ -59,25 +59,31 @@ async function initSettings() {
   const settingStartWindow = document.getElementById('setting-start-window');
   const optStartMinimized = document.getElementById('opt-start-minimized');
 
-  // 1. Recuperar valores guardados de electron-store (valores por defecto si no existen)
+  // Si los elementos no existen en el HTML todavía, salimos sin romper la ejecución
+  if (!settingResumeMusic || !settingTrayIcon || !settingCloseToTray || !settingShowNotifications || !settingStartWindow) {
+    console.warn("⚠️ Asegúrate de que los inputs de ajustes tengan los IDs idénticos en tu index.html");
+    return;
+  }
+
+  // 1. Cargar estados guardados en electron-store (o falses por defecto)
   const resumeMusic = await window.electronAPI.storeGet('setting-resume-music') || false;
   const trayIcon = await window.electronAPI.storeGet('setting-tray-icon') || false;
   const closeToTray = await window.electronAPI.storeGet('setting-close-to-tray') || false;
   const showNotifications = await window.electronAPI.storeGet('setting-show-notifications') || false;
   const startWindow = await window.electronAPI.storeGet('setting-start-window') || 'windowed';
 
-  // 2. Asignar estados a los elementos visuales del HTML
+  // 2. Pintar los estados en el HTML
   settingResumeMusic.checked = resumeMusic;
   settingTrayIcon.checked = trayIcon;
   settingCloseToTray.checked = closeToTray;
   settingShowNotifications.checked = showNotifications;
   settingStartWindow.value = startWindow;
 
-  // 3. Aplicar restricciones de dependencias iniciales (Requieren Tray Icon)
+  // 3. Reglas de interfaz condicionales (Dependen de que el Tray esté activo)
   settingCloseToTray.disabled = !trayIcon;
-  optStartMinimized.disabled = !trayIcon;
+  if (optStartMinimized) optStartMinimized.disabled = !trayIcon;
 
-  // 4. Escuchadores de eventos para guardar cambios al hacer click/cambiar
+  // 4. Asignar los eventos `change` para guardar dinámicamente
   settingResumeMusic.addEventListener('change', (e) => {
     window.electronAPI.storeSet('setting-resume-music', e.target.checked);
   });
@@ -86,11 +92,11 @@ async function initSettings() {
     const isEnabled = e.target.checked;
     window.electronAPI.storeSet('setting-tray-icon', isEnabled);
 
-    // Habilitar o deshabilitar sub-ajustes dependientes
+    // Activar o desactivar selectores que dependen estrictamente del icono de la barra de tareas
     settingCloseToTray.disabled = !isEnabled;
-    optStartMinimized.disabled = !isEnabled;
+    if (optStartMinimized) optStartMinimized.disabled = !isEnabled;
 
-    // Regla: Si se desactiva el tray icon, reseteamos las funciones dependientes obligatoriamente
+    // Si apagas el Tray Icon, forzamos el reseteo lógico de sus dependencias por seguridad
     if (!isEnabled) {
       settingCloseToTray.checked = false;
       window.electronAPI.storeSet('setting-close-to-tray', false);
@@ -135,7 +141,7 @@ async function restorePlayerState() {
   const sourceIdToLoad = savedSourceId || DEFAULT_SOURCE.id;
   await selectSource(sourceIdToLoad); 
 
-  // 3. Restaurar última canción y evaluar si se reanuda la reproducción
+  // 3. Restaurar última canción sonando
   if (savedTrackIndex !== undefined && savedTrackIndex !== null && currentPlaylist[savedTrackIndex]) {
     currentIndex = savedTrackIndex;
     const track = currentPlaylist[currentIndex];
@@ -145,27 +151,26 @@ async function restorePlayerState() {
     
     audio.src = track.url;
     
-    // Consultar el estado del ajuste de reanudación
-    const shouldResume = document.getElementById('setting-resume-music').checked;
+    const resumeCheckbox = document.getElementById('setting-resume-music');
+    const shouldResume = resumeCheckbox ? resumeCheckbox.checked : false;
 
-    // Esperamos a que carguen los metadatos del archivo para poder posicionar la línea de tiempo
+    // Posicionar el audio donde se dejó al cargar metadatos
     audio.addEventListener('loadedmetadata', function onMetadata() {
       if (savedPosition && savedPosition < audio.duration) {
         audio.currentTime = savedPosition;
         
-        // Actualizar barras e indicadores visuales
         const progressBar = document.getElementById('progress-bar');
         progressBar.value = (audio.currentTime / audio.duration) * 100;
         document.getElementById('time-current').textContent = formatTime(audio.currentTime);
         document.getElementById('time-total').textContent = formatTime(audio.duration);
       }
       
-      // Si el ajuste está activado, arranca la música automáticamente
+      // Si el ajuste de autoreproducción automática está activo, reproduce de inmediato
       if (shouldResume) {
-        audio.play().catch(err => console.log("Autoplay bloqueado o sin interacción previa:", err));
+        audio.play().catch(err => console.log("Autoplay mitigado:", err));
         document.getElementById('btn-play').innerHTML = SVG_PAUSE;
       }
-      
+
       audio.removeEventListener('loadedmetadata', onMetadata);
     });
   }
@@ -233,14 +238,11 @@ function renderSidebarSources() {
   });
 }
 
-// 🛠️ PANTALLA GESTIÓN DE FUENTES (TARJETAS)
 function renderManagementCards() {
   cardsContainer.innerHTML = '';
   sources.forEach(src => {
     const card = document.createElement('div');
     card.className = 'source-card';
-    
-    // Bloquear botones si es la fuente por defecto
     const isDisabled = src.isDefault ? 'disabled' : '';
 
     card.innerHTML = `
@@ -257,18 +259,15 @@ function renderManagementCards() {
     cardsContainer.appendChild(card);
   });
 
-  // Eventos de las tarjetas
   document.querySelectorAll('.edit-card-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const id = e.target.dataset.id;
-      openEditForm(id);
+      openEditForm(e.target.dataset.id);
     });
   });
 
   document.querySelectorAll('.delete-card-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      const id = e.target.dataset.id;
-      deleteSource(id);
+      deleteSource(e.target.dataset.id);
     });
   });
 }
@@ -292,7 +291,6 @@ function deleteSource(id) {
     localSources = localSources.filter(s => s.id !== id);
     localStorage.setItem('storm_sources', JSON.stringify(localSources));
     
-    // Si la fuente borrada era la activa, volvemos a la default
     if (currentSource && currentSource.id === id) {
       currentSource = DEFAULT_SOURCE;
     }
@@ -302,7 +300,6 @@ function deleteSource(id) {
   }
 }
 
-// --- FORMULARIO GUARDAR / EDITAR FUENTE ---
 formSource.addEventListener('submit', (e) => {
   e.preventDefault();
   const title = document.getElementById('input-title').value;
@@ -312,24 +309,19 @@ formSource.addEventListener('submit', (e) => {
   let localSources = JSON.parse(localStorage.getItem('storm_sources') || '[]');
 
   if (editingSourceId) {
-    // Modo Edición
     localSources = localSources.map(s => {
-      if (s.id === editingSourceId) {
-        return { ...s, title, filesUrl, directoryUrl };
-      }
+      if (s.id === editingSourceId) return { ...s, title, filesUrl, directoryUrl };
       return s;
     });
     editingSourceId = null;
   } else {
-    // Modo Nuevo
-    const newSource = {
+    localSources.push({
       id: 'custom-' + Date.now(),
       title,
       filesUrl,
       directoryUrl,
       isDefault: false
-    };
-    localSources.push(newSource);
+    });
   }
 
   localStorage.setItem('storm_sources', JSON.stringify(localSources));
@@ -371,6 +363,7 @@ function mergeMusicSourceData(files, directory) {
   return merged.sort((a, b) => parseInt(a.id) - parseInt(b.id));
 }
 
+// --- RENDERIZADO TABLA ---
 function renderTracks(playlist) {
   tracksBody.innerHTML = '';
   if (playlist.length === 0) {
@@ -385,7 +378,7 @@ function renderTracks(playlist) {
   });
 }
 
-// --- PLAYER AUDIO EVENTS ---
+// --- PLAYER AUDIO ENGINE ---
 function playTrack(index) {
   if (index < 0 || index >= currentPlaylist.length) return;
   currentIndex = index;
@@ -398,11 +391,11 @@ function playTrack(index) {
   audio.play();
   document.getElementById('btn-play').innerHTML = SVG_PAUSE;
 
-  // 📦 Persistir canción y lista actual de manera permanente
+  // 📦 Persistir canción de manera permanente
   window.electronAPI.storeSet('lastSourceId', currentSource.id);
   window.electronAPI.storeSet('lastTrackIndex', currentIndex);
 
-  // 🔔 NOTIFICACIÓN DE ESCRITORIO (Si está activa)
+  // 🔔 NOTIFICACIONES INTEGRADAS (Si están activas)
   const notifyCheckbox = document.getElementById('setting-show-notifications');
   if (notifyCheckbox && notifyCheckbox.checked) {
     if (Notification.permission === 'granted') {
@@ -430,14 +423,12 @@ function initPlayerEvents() {
     } else {
       audio.pause();
       btnPlay.innerHTML = SVG_PLAY;
-      // 📦 Guardar inmediatamente al pausar la línea de reproducción
       window.electronAPI.storeSet('lastPosition', audio.currentTime);
     }
   });
 
-  // Salto automático al terminar una canción de manera natural
   audio.addEventListener('ended', () => {
-    window.electronAPI.storeSet('lastPosition', 0); // Resetear posición
+    window.electronAPI.storeSet('lastPosition', 0);
     if (currentIndex < currentPlaylist.length - 1) {
       playTrack(currentIndex + 1);
     } else {
@@ -450,14 +441,12 @@ function initPlayerEvents() {
   document.getElementById('btn-next').addEventListener('click', () => { if (currentIndex < currentPlaylist.length - 1) playTrack(currentIndex + 1); });
   document.getElementById('btn-prev').addEventListener('click', () => { if (currentIndex > 0) playTrack(currentIndex - 1); });
 
-  // Evento de actualización horaria continua
   audio.addEventListener('timeupdate', () => {
     if (audio.duration) {
       progressBar.value = (audio.currentTime / audio.duration) * 100;
       document.getElementById('time-current').textContent = formatTime(audio.currentTime);
       document.getElementById('time-total').textContent = formatTime(audio.duration);
 
-      // 📦 Guardado inteligente cada 3 segundos en segundo plano sin asfixiar el disco I/O
       const currentSecond = Math.floor(audio.currentTime);
       if (currentSecond !== lastSavedSecond && currentSecond % 3 === 0) {
         lastSavedSecond = currentSecond;
@@ -475,7 +464,6 @@ function initPlayerEvents() {
 
   volumeBar.addEventListener('input', () => { 
     audio.volume = volumeBar.value / 100;
-    // 📦 Guardar volumen seleccionado
     window.electronAPI.storeSet('volume', audio.volume);
   });
 }
@@ -488,22 +476,26 @@ function formatTime(secs) {
 
 // --- THEME SWITCHER ---
 const btnTheme = document.getElementById('btn-toggle-theme');
-btnTheme.addEventListener('click', () => {
-  const currentTheme = document.documentElement.getAttribute('data-theme');
-  if (currentTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'light');
-    btnTheme.textContent = 'Cambiar a Modo Oscuro';
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    btnTheme.textContent = 'Cambiar a Modo Claro';
-  }
-});
+if (btnTheme) {
+  btnTheme.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'light');
+      btnTheme.textContent = 'Cambiar a Modo Oscuro';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      btnTheme.textContent = 'Cambiar a Modo Claro';
+    }
+  });
+}
 
 // --- UPDATER ---
 function initUpdaterEvents() {
   const btnCheck = document.getElementById('btn-check-update');
   const statusText = document.getElementById('updater-status');
   const actionsContainer = document.getElementById('updater-actions');
+
+  if (!btnCheck) return;
 
   btnCheck.addEventListener('click', () => window.electronAPI.checkUpdate());
 

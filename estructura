@@ -3,6 +3,7 @@ StormMusic/
 ├── main.js
 ├── preload.js
 └── src/
+    ├── icon.png
     ├── index.html
     ├── style.css
     └── renderer.js
