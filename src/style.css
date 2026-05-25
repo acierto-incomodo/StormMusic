@@ -94,7 +94,7 @@ body {
 .app-container {
   display: flex;
   flex: 1;
-  height: calc(100vh - 32px - 75px);
+  height: calc(100vh - 32px - 90px);
 }
 
 /* SIDEBAR */
@@ -106,6 +106,7 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  height: 100%;
 }
 
 .brand {
@@ -113,6 +114,30 @@ body {
   font-weight: 700;
   color: var(--accent);
   margin-bottom: 25px;
+  flex-shrink: 0;
+}
+
+/* 🛠️ MODIFICADO: Menú con scroll interno para evitar que empuje el footer */
+.menu {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding-right: 4px;
+}
+
+/* Scrollbar sutil para la lista de fuentes */
+.menu::-webkit-scrollbar {
+  width: 4px;
+}
+.menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.menu::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+.menu::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .menu h3 {
@@ -132,7 +157,15 @@ body {
 }
 .menu li:hover, .menu li.active { background-color: var(--hover-color); }
 
-.sidebar-footer { display: flex; flex-direction: column; gap: 8px; }
+.sidebar-footer { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+}
+
 .nav-btn {
   background: none;
   border: none;
@@ -232,7 +265,7 @@ h1 { font-size: 28px; font-weight: 700; }
 
 /* PLAYER BAR */
 .player-bar {
-  height: 90px; /* Incrementado para dar más aire vertical */
+  height: 90px;
   background-color: var(--bg-sidebar);
   border-top: 1px solid var(--border-color);
   display: flex;
@@ -243,13 +276,6 @@ h1 { font-size: 28px; font-weight: 700; }
   bottom: 0;
   width: 100%;
   z-index: 9999;
-}
-
-/* Ajustamos el contenedor de las vistas para el nuevo alto del player */
-.app-container {
-  display: flex;
-  flex: 1;
-  height: calc(100vh - 32px - 90px);
 }
 
 .player-info {
@@ -308,7 +334,7 @@ h1 { font-size: 28px; font-weight: 700; }
 .control-btn:hover svg { opacity: 1; }
 .control-btn:active { transform: scale(0.95); }
 
-/* Botón Play/Pausa Central (Redondeado y dominante) */
+/* Botón Play/Pausa Central */
 .control-btn.play-main {
   background-color: var(--text-main);
   padding: 10px;
@@ -334,7 +360,7 @@ h1 { font-size: 28px; font-weight: 700; }
   gap: 12px;
   font-size: 11px;
   color: var(--text-secondary);
-  font-variant-numeric: tabular-nums; /* Evita parpadeos de posición al cambiar números */
+  font-variant-numeric: tabular-nums;
 }
 
 .slider-wrapper {
@@ -343,7 +369,7 @@ h1 { font-size: 28px; font-weight: 700; }
   align-items: center;
 }
 
-/* UNIFICACIÓN DE CONTROLES DESLIZADORES (Siempre visibles) */
+/* UNIFICACIÓN DE CONTROLES DESLIZADORES */
 input[type="range"] {
   -webkit-appearance: none;
   width: 100%;
@@ -352,20 +378,18 @@ input[type="range"] {
 }
 input[type="range"]:focus { outline: none; }
 
-/* El carril base (Fondo visible por defecto) */
 input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
   height: 5px;
-  background: rgba(255, 255, 255, 0.15); /* Gris claro traslúcido en modo oscuro */
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
   transition: background 0.15s;
 }
 
 [data-theme="light"] input[type="range"]::-webkit-slider-runnable-track {
-  background: rgba(0, 0, 0, 0.12); /* Gris suave en modo claro */
+  background: rgba(0, 0, 0, 0.12);
 }
 
-/* Al pasar por encima, el carril se oscurece/ilumina un poco más */
 .slider-wrapper:hover input[type="range"]::-webkit-slider-runnable-track,
 .player-volume:hover input[type="range"]::-webkit-slider-runnable-track {
   background: rgba(255, 255, 255, 0.3);
@@ -375,22 +399,21 @@ input[type="range"]::-webkit-slider-runnable-track {
   background: rgba(0, 0, 0, 0.25);
 }
 
-/* El botón circular (Thumb - Siempre visible ahora) */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 12px;
   width: 12px;
   border-radius: 50%;
-  background: var(--text-main); /* Blanco en modo oscuro, negro en claro */
-  margin-top: -3.5px; /* Centrado en el eje vertical */
-  opacity: 1; /* 🛠️ Cambiado de 0 a 1 para visibilidad permanente */
+  background: var(--text-main);
+  margin-top: -3.5px;
+  opacity: 1;
   transition: transform 0.1s, background-color 0.1s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.3);
-  background: var(--accent); /* Se vuelve rojo Apple al arrastrarlo */
+  background: var(--accent);
 }
 
 /* SECCIÓN VOLUMEN (DERECHA) */
