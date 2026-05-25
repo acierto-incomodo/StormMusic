@@ -43,9 +43,77 @@ document.addEventListener('DOMContentLoaded', async () => {
   initUpdaterEvents();
   initNavigation();
   
-  // 📦 Restaurar todo el estado guardado en electron-store de forma asíncrona
+  // ⚙️ Inicializar y cargar los nuevos ajustes del sistema
+  await initSettings();
+  
+  // 📦 Restaurar todo el estado guardado de reproducción
   await restorePlayerState();
 });
+
+// --- ⚙️ MOTOR DE AJUSTES (STORMMUSIC) ---
+async function initSettings() {
+  const settingResumeMusic = document.getElementById('setting-resume-music');
+  const settingTrayIcon = document.getElementById('setting-tray-icon');
+  const settingCloseToTray = document.getElementById('setting-close-to-tray');
+  const settingShowNotifications = document.getElementById('setting-show-notifications');
+  const settingStartWindow = document.getElementById('setting-start-window');
+  const optStartMinimized = document.getElementById('opt-start-minimized');
+
+  // 1. Recuperar valores guardados de electron-store (valores por defecto si no existen)
+  const resumeMusic = await window.electronAPI.storeGet('setting-resume-music') || false;
+  const trayIcon = await window.electronAPI.storeGet('setting-tray-icon') || false;
+  const closeToTray = await window.electronAPI.storeGet('setting-close-to-tray') || false;
+  const showNotifications = await window.electronAPI.storeGet('setting-show-notifications') || false;
+  const startWindow = await window.electronAPI.storeGet('setting-start-window') || 'windowed';
+
+  // 2. Asignar estados a los elementos visuales del HTML
+  settingResumeMusic.checked = resumeMusic;
+  settingTrayIcon.checked = trayIcon;
+  settingCloseToTray.checked = closeToTray;
+  settingShowNotifications.checked = showNotifications;
+  settingStartWindow.value = startWindow;
+
+  // 3. Aplicar restricciones de dependencias iniciales (Requieren Tray Icon)
+  settingCloseToTray.disabled = !trayIcon;
+  optStartMinimized.disabled = !trayIcon;
+
+  // 4. Escuchadores de eventos para guardar cambios al hacer click/cambiar
+  settingResumeMusic.addEventListener('change', (e) => {
+    window.electronAPI.storeSet('setting-resume-music', e.target.checked);
+  });
+
+  settingTrayIcon.addEventListener('change', (e) => {
+    const isEnabled = e.target.checked;
+    window.electronAPI.storeSet('setting-tray-icon', isEnabled);
+
+    // Habilitar o deshabilitar sub-ajustes dependientes
+    settingCloseToTray.disabled = !isEnabled;
+    optStartMinimized.disabled = !isEnabled;
+
+    // Regla: Si se desactiva el tray icon, reseteamos las funciones dependientes obligatoriamente
+    if (!isEnabled) {
+      settingCloseToTray.checked = false;
+      window.electronAPI.storeSet('setting-close-to-tray', false);
+      
+      if (settingStartWindow.value === 'minimized') {
+        settingStartWindow.value = 'windowed';
+        window.electronAPI.storeSet('setting-start-window', 'windowed');
+      }
+    }
+  });
+
+  settingCloseToTray.addEventListener('change', (e) => {
+    window.electronAPI.storeSet('setting-close-to-tray', e.target.checked);
+  });
+
+  settingShowNotifications.addEventListener('change', (e) => {
+    window.electronAPI.storeSet('setting-show-notifications', e.target.checked);
+  });
+
+  settingStartWindow.addEventListener('change', (e) => {
+    window.electronAPI.storeSet('setting-start-window', e.target.value);
+  });
+}
 
 // --- 📦 RESTAURAR ESTADO PERSISTENTE ---
 async function restorePlayerState() {
@@ -67,7 +135,7 @@ async function restorePlayerState() {
   const sourceIdToLoad = savedSourceId || DEFAULT_SOURCE.id;
   await selectSource(sourceIdToLoad); 
 
-  // 3. Restaurar última canción y su línea de tiempo sin autoreproducir
+  // 3. Restaurar última canción y evaluar si se reanuda la reproducción
   if (savedTrackIndex !== undefined && savedTrackIndex !== null && currentPlaylist[savedTrackIndex]) {
     currentIndex = savedTrackIndex;
     const track = currentPlaylist[currentIndex];
@@ -77,6 +145,9 @@ async function restorePlayerState() {
     
     audio.src = track.url;
     
+    // Consultar el estado del ajuste de reanudación
+    const shouldResume = document.getElementById('setting-resume-music').checked;
+
     // Esperamos a que carguen los metadatos del archivo para poder posicionar la línea de tiempo
     audio.addEventListener('loadedmetadata', function onMetadata() {
       if (savedPosition && savedPosition < audio.duration) {
@@ -88,6 +159,13 @@ async function restorePlayerState() {
         document.getElementById('time-current').textContent = formatTime(audio.currentTime);
         document.getElementById('time-total').textContent = formatTime(audio.duration);
       }
+      
+      // Si el ajuste está activado, arranca la música automáticamente
+      if (shouldResume) {
+        audio.play().catch(err => console.log("Autoplay bloqueado o sin interacción previa:", err));
+        document.getElementById('btn-play').innerHTML = SVG_PAUSE;
+      }
+      
       audio.removeEventListener('loadedmetadata', onMetadata);
     });
   }
@@ -323,6 +401,20 @@ function playTrack(index) {
   // 📦 Persistir canción y lista actual de manera permanente
   window.electronAPI.storeSet('lastSourceId', currentSource.id);
   window.electronAPI.storeSet('lastTrackIndex', currentIndex);
+
+  // 🔔 NOTIFICACIÓN DE ESCRITORIO (Si está activa)
+  const notifyCheckbox = document.getElementById('setting-show-notifications');
+  if (notifyCheckbox && notifyCheckbox.checked) {
+    if (Notification.permission === 'granted') {
+      new Notification('StormMusic ⚡', { body: `Sonando: ${track.title}`, silent: true });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          new Notification('StormMusic ⚡', { body: `Sonando: ${track.title}`, silent: true });
+        }
+      });
+    }
+  }
 }
 
 function initPlayerEvents() {

@@ -1,6 +1,6 @@
 {
   "name": "stormmusic",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "description": "Reproductor de música inspirado en Apple Music con soporte de fuentes dinámicas.",
   "main": "main.js",
   "scripts": {
