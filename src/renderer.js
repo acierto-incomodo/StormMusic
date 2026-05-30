@@ -496,7 +496,26 @@ function initUpdaterEvents() {
   const actionsContainer = document.getElementById('updater-actions');
 
   if (!btnCheck) return;
+  // Detect runtime info (agregado desde preload)
+  const runtime = (window.electronAPI && window.electronAPI.runtimeInfo) ? window.electronAPI.runtimeInfo : {};
 
+  // Si estamos empaquetados como Flatpak, o instalados vía repositorio del sistema (pacman),
+  // desactivamos el actualizador in-app y mostramos instrucciones al usuario.
+  if (runtime.isFlatpak) {
+    statusText.textContent = 'Actualizaciones gestionadas por Flatpak/Flathub.';
+    actionsContainer.innerHTML = '<p>Esta instalación fue distribuida como Flatpak. Las actualizaciones se gestionan mediante Flatpak/Flathub. Usa `flatpak update` o el gestor del sistema para actualizar.</p>';
+    btnCheck.disabled = true;
+    return;
+  }
+
+  if (runtime.hasPacman) {
+    statusText.textContent = 'Actualizaciones gestionadas por pacman/AUR.';
+    actionsContainer.innerHTML = '<p>Si instalaste desde los repositorios de tu distribución o AUR, actualiza con tu gestor (por ejemplo `sudo pacman -Syu` o tu helper AUR). La app no puede auto-instalar actualizaciones del sistema.</p>';
+    btnCheck.disabled = true;
+    return;
+  }
+
+  // Comportamiento por defecto: habilitar el updater in-app
   btnCheck.addEventListener('click', () => window.electronAPI.checkUpdate());
 
   window.electronAPI.onUpdaterMessage((status, data) => {
